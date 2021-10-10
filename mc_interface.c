@@ -95,14 +95,22 @@ static volatile motor_if_state_t m_motor_2;
 #define ADC_SAMPLE_MAX_LEN		2000
 __attribute__((section(".ram4"))) static volatile int16_t m_curr0_samples[ADC_SAMPLE_MAX_LEN];
 __attribute__((section(".ram4"))) static volatile int16_t m_curr1_samples[ADC_SAMPLE_MAX_LEN];
-__attribute__((section(".ram4"))) static volatile int16_t m_ph1_samples[ADC_SAMPLE_MAX_LEN];
-__attribute__((section(".ram4"))) static volatile int16_t m_ph2_samples[ADC_SAMPLE_MAX_LEN];
-__attribute__((section(".ram4"))) static volatile int16_t m_ph3_samples[ADC_SAMPLE_MAX_LEN];
-__attribute__((section(".ram4"))) static volatile int16_t m_vzero_samples[ADC_SAMPLE_MAX_LEN];
+// __attribute__((section(".ram4"))) static volatile int16_t m_ph1_samples[ADC_SAMPLE_MAX_LEN];
+// __attribute__((section(".ram4"))) static volatile int16_t m_ph2_samples[ADC_SAMPLE_MAX_LEN];
+// __attribute__((section(".ram4"))) static volatile int16_t m_ph3_samples[ADC_SAMPLE_MAX_LEN];
+// __attribute__((section(".ram4"))) static volatile int16_t m_vzero_samples[ADC_SAMPLE_MAX_LEN];
 __attribute__((section(".ram4"))) static volatile uint8_t m_status_samples[ADC_SAMPLE_MAX_LEN];
 __attribute__((section(".ram4"))) static volatile int16_t m_curr_fir_samples[ADC_SAMPLE_MAX_LEN];
 __attribute__((section(".ram4"))) static volatile int16_t m_f_sw_samples[ADC_SAMPLE_MAX_LEN];
 __attribute__((section(".ram4"))) static volatile int8_t m_phase_samples[ADC_SAMPLE_MAX_LEN];
+
+__attribute__((section(".ram4"))) static volatile float m_foc_vd_samples[ADC_SAMPLE_MAX_LEN];
+__attribute__((section(".ram4"))) static volatile float m_foc_vq_samples[ADC_SAMPLE_MAX_LEN];
+__attribute__((section(".ram4"))) static volatile float m_foc_id_samples[ADC_SAMPLE_MAX_LEN];
+__attribute__((section(".ram4"))) static volatile float m_foc_iq_samples[ADC_SAMPLE_MAX_LEN];
+
+
+
 
 static volatile int m_sample_len;
 static volatile int m_sample_int;
@@ -1808,28 +1816,35 @@ void mc_interface_mc_timer_isr(bool is_second_motor) {
 				m_curr0_samples[m_sample_now] = (int16_t)mcpwm_detect_currents[mcpwm_get_comm_step() - 1];
 				m_curr1_samples[m_sample_now] = (int16_t)mcpwm_detect_currents_diff[mcpwm_get_comm_step() - 1];
 
-				m_ph1_samples[m_sample_now] = (int16_t)mcpwm_detect_voltages[0];
-				m_ph2_samples[m_sample_now] = (int16_t)mcpwm_detect_voltages[1];
-				m_ph3_samples[m_sample_now] = (int16_t)mcpwm_detect_voltages[2];
+				// m_ph1_samples[m_sample_now] = (int16_t)mcpwm_detect_voltages[0];
+				// m_ph2_samples[m_sample_now] = (int16_t)mcpwm_detect_voltages[1];
+				// m_ph3_samples[m_sample_now] = (int16_t)mcpwm_detect_voltages[2];
+
 			} else {
 				if (is_second_motor) {
 					m_curr0_samples[m_sample_now] = ADC_curr_norm_value[3];
 					m_curr1_samples[m_sample_now] = ADC_curr_norm_value[4];
 
-					m_ph1_samples[m_sample_now] = ADC_V_L4 - zero;
-					m_ph2_samples[m_sample_now] = ADC_V_L5 - zero;
-					m_ph3_samples[m_sample_now] = ADC_V_L6 - zero;
+					// m_ph1_samples[m_sample_now] = ADC_V_L4 - zero;
+					// m_ph2_samples[m_sample_now] = ADC_V_L5 - zero;
+					// m_ph3_samples[m_sample_now] = ADC_V_L6 - zero;
 				} else {
 					m_curr0_samples[m_sample_now] = ADC_curr_norm_value[0];
 					m_curr1_samples[m_sample_now] = ADC_curr_norm_value[1];
 
-					m_ph1_samples[m_sample_now] = ADC_V_L1 - zero;
-					m_ph2_samples[m_sample_now] = ADC_V_L2 - zero;
-					m_ph3_samples[m_sample_now] = ADC_V_L3 - zero;
+					// m_ph1_samples[m_sample_now] = ADC_V_L1 - zero;
+					// m_ph2_samples[m_sample_now] = ADC_V_L2 - zero;
+					// m_ph3_samples[m_sample_now] = ADC_V_L3 - zero;
 				}
 			}
 
-			m_vzero_samples[m_sample_now] = zero;
+			m_foc_vd_samples[m_sample_now] = mcpwm_foc_get_vd();
+			m_foc_vq_samples[m_sample_now] = mcpwm_foc_get_vq();
+
+			m_foc_id_samples[m_sample_now] = mcpwm_foc_get_id();
+			m_foc_iq_samples[m_sample_now] = mcpwm_foc_get_iq();
+
+			// m_vzero_samples[m_sample_now] = zero;
 			m_curr_fir_samples[m_sample_now] = (int16_t)(current * (8.0 / FAC_CURRENT));
 			m_f_sw_samples[m_sample_now] = (int16_t)(f_samp / 10.0);
 			m_status_samples[m_sample_now] = mcpwm_get_comm_step() | (mcpwm_read_hall_phase() << 3);
@@ -2300,12 +2315,21 @@ static THD_FUNCTION(sample_send_thread, arg) {
 			buffer[index++] = COMM_SAMPLE_PRINT;
 			buffer_append_float32_auto(buffer, (float)m_curr0_samples[ind_samp] * FAC_CURRENT, &index);
 			buffer_append_float32_auto(buffer, (float)m_curr1_samples[ind_samp] * FAC_CURRENT, &index);
-			buffer_append_float32_auto(buffer, ((float)m_ph1_samples[ind_samp] / 4096.0 * V_REG) * ((VIN_R1 + VIN_R2) / VIN_R2) * ADC_VOLTS_PH_FACTOR, &index);
-			buffer_append_float32_auto(buffer, ((float)m_ph2_samples[ind_samp] / 4096.0 * V_REG) * ((VIN_R1 + VIN_R2) / VIN_R2) * ADC_VOLTS_PH_FACTOR, &index);
-			buffer_append_float32_auto(buffer, ((float)m_ph3_samples[ind_samp] / 4096.0 * V_REG) * ((VIN_R1 + VIN_R2) / VIN_R2) * ADC_VOLTS_PH_FACTOR, &index);
-			buffer_append_float32_auto(buffer, ((float)m_vzero_samples[ind_samp] / 4096.0 * V_REG) * ((VIN_R1 + VIN_R2) / VIN_R2) * ADC_VOLTS_INPUT_FACTOR, &index);
-			buffer_append_float32_auto(buffer, (float)m_curr_fir_samples[ind_samp] / (8.0 / FAC_CURRENT), &index);
-			buffer_append_float32_auto(buffer, (float)m_f_sw_samples[ind_samp] * 10.0, &index);
+			//buffer_append_float32_auto(buffer, ((float)m_ph1_samples[ind_samp] / 4096.0 * V_REG) * ((VIN_R1 + VIN_R2) / VIN_R2) * ADC_VOLTS_PH_FACTOR, &index);
+			//buffer_append_float32_auto(buffer, ((float)m_ph2_samples[ind_samp] / 4096.0 * V_REG) * ((VIN_R1 + VIN_R2) / VIN_R2) * ADC_VOLTS_PH_FACTOR, &index);
+			//buffer_append_float32_auto(buffer, ((float)m_ph3_samples[ind_samp] / 4096.0 * V_REG) * ((VIN_R1 + VIN_R2) / VIN_R2) * ADC_VOLTS_PH_FACTOR, &index);
+			//buffer_append_float32_auto(buffer, ((float)m_vzero_samples[ind_samp] / 4096.0 * V_REG) * ((VIN_R1 + VIN_R2) / VIN_R2) * ADC_VOLTS_INPUT_FACTOR, &index);
+			
+			buffer_append_float32_auto(buffer, m_foc_vd_samples[ind_samp], &index);
+			buffer_append_float32_auto(buffer, m_foc_vq_samples[ind_samp], &index);
+			buffer_append_float32_auto(buffer, m_foc_id_samples[ind_samp], &index);
+			buffer_append_float32_auto(buffer, m_foc_iq_samples[ind_samp], &index);
+			
+			buffer_append_float32_auto(buffer, (float)-0.9, &index);
+			buffer_append_float32_auto(buffer, (float)-0.9, &index);
+			
+			// buffer_append_float32_auto(buffer, (float)m_curr_fir_samples[ind_samp] / (8.0 / FAC_CURRENT), &index);
+			// buffer_append_float32_auto(buffer, (float)m_f_sw_samples[ind_samp] * 10.0, &index);
 			buffer[index++] = m_status_samples[ind_samp];
 			buffer[index++] = m_phase_samples[ind_samp];
 
