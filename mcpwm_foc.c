@@ -777,7 +777,7 @@ void mcpwm_foc_stop_pwm(bool is_second_motor) {
 void mcpwm_foc_set_duty(float dutyCycle) {
 	motor_now()->m_control_mode = CONTROL_MODE_DUTY;
 	motor_now()->m_duty_cycle_set = dutyCycle;
-
+	
 	if (motor_now()->m_state != MC_STATE_RUNNING) {
 		motor_now()->m_state = MC_STATE_RUNNING;
 	}
@@ -3365,9 +3365,15 @@ static void control_current(volatile motor_all_state_t *motor, float dt) {
 			break;
 		}
 	}
-
+	
 	state_m->vd -= dec_vd;
 	state_m->vq += dec_vq + dec_bemf;
+
+	// srand(0);
+	// float rand_vd = (float)rand() / (float)RAND_MAX * 3.f;
+	// float rand_vq = (float)rand() / (float)RAND_MAX * 3.f;
+	// state_m->vd = rand_vd;
+	// state_m->vq = rand_vq;
 
 	float max_v_mag = (2.0 / 3.0) * max_duty * SQRT3_BY_2 * state_m->v_bus;
 

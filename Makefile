@@ -291,6 +291,7 @@ build/$(PROJECT).bin: build/$(PROJECT).elf
 	$(BIN) build/$(PROJECT).elf build/$(PROJECT).bin --gap-fill 0xFF
 
 # Program
+# C:\\Users\\uidp3509\\.platformio\\packages\\tool-openocd\\bin\\openocd.exe
 upload: build/$(PROJECT).bin
 	openocd -f board/stm32f4discovery.cfg -c "reset_config trst_only combined" -c "program build/$(PROJECT).elf verify reset exit"
 
