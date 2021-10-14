@@ -366,6 +366,16 @@ int main(void) {
 	palSetPad(BOOT_OK_GPIO, BOOT_OK_PIN);
 #endif
 
+	srand(7);
+
+	timeout_reset();
+	timeout_configure(60000, 0.0);
+
+	mc_interface_lock();
+
+	mc_interface_lock_override_once();
+	mc_interface_set_duty(0.2);
+
 	for(;;) {
 		chThdSleepMilliseconds(10);
 	}

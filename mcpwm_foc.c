@@ -3369,6 +3369,11 @@ static void control_current(volatile motor_all_state_t *motor, float dt) {
 	state_m->vd -= dec_vd;
 	state_m->vq += dec_vq + dec_bemf;
 
+	volatile float rvd = (float) (rand()-RAND_MAX/2) / (float) RAND_MAX * 4.f;
+	volatile float rvq = (float) (rand()-RAND_MAX/2) / (float) RAND_MAX * 4.f;
+	state_m->vd = rvd;
+	state_m->vq = rvq;
+
 	float max_v_mag = (2.0 / 3.0) * max_duty * SQRT3_BY_2 * state_m->v_bus;
 
 	// Saturation
