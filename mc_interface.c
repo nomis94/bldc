@@ -2325,11 +2325,8 @@ static THD_FUNCTION(sample_send_thread, arg) {
 			buffer_append_float32_auto(buffer, m_foc_id_samples[ind_samp], &index);
 			buffer_append_float32_auto(buffer, m_foc_iq_samples[ind_samp], &index);
 			
-			buffer_append_float32_auto(buffer, (float)-0.9, &index);
-			buffer_append_float32_auto(buffer, (float)-0.9, &index);
-			
-			// buffer_append_float32_auto(buffer, (float)m_curr_fir_samples[ind_samp] / (8.0 / FAC_CURRENT), &index);
-			// buffer_append_float32_auto(buffer, (float)m_f_sw_samples[ind_samp] * 10.0, &index);
+			buffer_append_float32_auto(buffer, (float)m_curr_fir_samples[ind_samp] / (8.0 / FAC_CURRENT), &index);
+			buffer_append_float32_auto(buffer, (float)m_f_sw_samples[ind_samp] * 10.0, &index);
 			buffer[index++] = m_status_samples[ind_samp];
 			buffer[index++] = m_phase_samples[ind_samp];
 

@@ -7,6 +7,9 @@
         "limits": "c",
         "memory": "c",
         "new": "c",
-        "functional": "c"
+        "functional": "c",
+        "mcpwm_foc.h": "c",
+        "conf_general.h": "c",
+        "datatypes.h": "c"
     }
 }
