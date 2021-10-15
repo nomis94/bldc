@@ -767,6 +767,13 @@ void mcpwm_foc_stop_pwm(bool is_second_motor) {
 	stop_pwm_hw(motor);
 }
 
+
+void mcpwm_foc_set_running(void) {
+	if (motor_now()->m_state != MC_STATE_RUNNING) {
+		motor_now()->m_state = MC_STATE_RUNNING;
+	}
+}
+
 /**
  * Use duty cycle control. Absolute values less than MCPWM_MIN_DUTY_CYCLE will
  * stop the motor.
@@ -2131,21 +2138,21 @@ void mcpwm_foc_adc_int_handler(void *p, uint32_t flags) {
 
 	volatile mc_configuration *conf_now = motor_now->m_conf;
 
-	if (motor_other->m_duty_next_set) {
-		motor_other->m_duty_next_set = false;
-#ifdef HW_HAS_DUAL_MOTORS
-		if (is_second_motor) {
-			TIMER_UPDATE_DUTY_M1(motor_other->m_duty1_next, motor_other->m_duty2_next, motor_other->m_duty3_next);
-		} else {
-			TIMER_UPDATE_DUTY_M2(motor_other->m_duty1_next, motor_other->m_duty2_next, motor_other->m_duty3_next);
-		}
-#else
-		TIMER_UPDATE_DUTY_M1(motor_now->m_duty1_next, motor_now->m_duty2_next, motor_now->m_duty3_next);
-#ifdef HW_HAS_DUAL_PARALLEL
-		TIMER_UPDATE_DUTY_M2(motor_now->m_duty1_next, motor_now->m_duty2_next, motor_now->m_duty3_next);
-#endif
-#endif
-	}
+// 	if (motor_other->m_duty_next_set) {
+// 		motor_other->m_duty_next_set = false;
+// #ifdef HW_HAS_DUAL_MOTORS
+// 		if (is_second_motor) {
+// 			TIMER_UPDATE_DUTY_M1(motor_other->m_duty1_next, motor_other->m_duty2_next, motor_other->m_duty3_next);
+// 		} else {
+// 			TIMER_UPDATE_DUTY_M2(motor_other->m_duty1_next, motor_other->m_duty2_next, motor_other->m_duty3_next);
+// 		}
+// #else
+// 		TIMER_UPDATE_DUTY_M1(motor_now->m_duty1_next, motor_now->m_duty2_next, motor_now->m_duty3_next);
+// #ifdef HW_HAS_DUAL_PARALLEL
+// 		TIMER_UPDATE_DUTY_M2(motor_now->m_duty1_next, motor_now->m_duty2_next, motor_now->m_duty3_next);
+// #endif
+// #endif
+// 	}
 
 #ifndef HW_HAS_DUAL_MOTORS
 #ifdef HW_HAS_PHASE_SHUNTS
@@ -3286,6 +3293,10 @@ static void control_current(volatile motor_all_state_t *motor, float dt) {
 	volatile motor_state_t *state_m = &motor->m_motor_state;
 	volatile mc_configuration *conf_now = motor->m_conf;
 
+  static int teiler = 0;
+	static float rvd = 0.f; 
+	static float rvq = 0.f;
+
 	float c,s;
 	utils_fast_sincos_better(state_m->phase, &s, &c);
 
@@ -3369,9 +3380,15 @@ static void control_current(volatile motor_all_state_t *motor, float dt) {
 	state_m->vd -= dec_vd;
 	state_m->vq += dec_vq + dec_bemf;
 
-	volatile float rvd = (float) (rand()-RAND_MAX/2) / (float) RAND_MAX * 4.f;
-	volatile float rvq = (float) (rand()-RAND_MAX/2) / (float) RAND_MAX * 4.f;
-	state_m->vd = rvd;
+
+  teiler++;
+	if(teiler > 5) {
+		teiler = 0;
+		rvd = (float) (rand()-RAND_MAX/2) / (float) RAND_MAX * 6.f;
+	  rvq = (float) (rand()-RAND_MAX/2) / (float) RAND_MAX * 6.f;
+	}
+
+  state_m->vd = rvd;
 	state_m->vq = rvq;
 
 	float max_v_mag = (2.0 / 3.0) * max_duty * SQRT3_BY_2 * state_m->v_bus;

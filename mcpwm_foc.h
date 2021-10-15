@@ -24,6 +24,7 @@
 #include "datatypes.h"
 #include <stdbool.h>
 
+void mcpwm_foc_set_running(void);
 // Functions
 void mcpwm_foc_init(volatile mc_configuration *conf_m1, volatile mc_configuration *conf_m2);
 void mcpwm_foc_deinit(void);
